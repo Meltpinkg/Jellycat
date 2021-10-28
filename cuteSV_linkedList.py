@@ -21,10 +21,8 @@ class Record(object):
             if 'SVLEN' in record.info:
                 self.end = abs(parse_to_int(record.info['SVLEN']))
             else:
-                print(record)
-                print('parse end ERROR')
                 try:
-                    self.end = parse_to_int(record.stop)
+                    self.end = abs(parse_to_int(record.stop) - self.start)
                 except:
                     self.end = 0
         if self.type == 'BND':

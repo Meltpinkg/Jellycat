@@ -291,6 +291,7 @@ def ll_solve_chrom(para):
     support = para[3]
     svtype = para[4]
     filenum = para[5]
+    supp_filter = para[6]
     max_dist = 1000
     sort_ans = first_sort(vcf_files, max_dist, filenum)
     #print('finish sorting in %s'%(str(time.time() - start_time)))
@@ -298,16 +299,7 @@ def ll_solve_chrom(para):
     idx = 0
     for node in sort_ans:
         idx += 1
-        if svtype == 'INS':
-            candidates = cal_can_INS(node, 0)
-        elif svtype == 'DEL':
-            candidates = cal_can_DEL(node, 0)
-        elif svtype == 'INV':
-            candidates = cal_can_INV(node, 0)
-        elif svtype == 'DUP':
-            candidates = cal_can_DUP(node, 0)
-        else:
-            candidates = cal_can_BND(node, 0)
+        candidates = cal_can(node, 0, svtype)
         for candidate in candidates: # candidate -> list(Record)
             if len(candidate) < support:
                 continue
@@ -319,7 +311,7 @@ def ll_solve_chrom(para):
                 candidate_dict[can.source] = can
             result.append([candidate_record.chrom1, candidate_record.start, candidate_record, cipos, ciend, candidate_dict, annotation])
     print('finish %s-%s in %s'%(chrom, svtype, str(time.time() - start_time)))
-    output_result(result, filenum, 'temporary/' + chrom + '_' + svtype)
+    output_result(result, filenum, 'temporary/' + chrom + '_' + svtype, supp_filter)
     print('finish %s-%s in %s, total %dnodes'%(chrom, svtype, str(time.time() - start_time), len(result)))
 
 # resolve_chrom
@@ -347,6 +339,9 @@ def main_ctrl(args):
 def main(args):
     start_time = time.time()
     chr_dict, sample_ids, contiginfo, order = parse_vcfs(args.input, args.IOthreads)
+    if args.supp != None and len(sample_ids) != len(args.supp):
+        print('parameter \'supp\' doesn\'t match number of files input in %s'%(args.input))
+        exit(0)
     annotation_dict = parse_annotation_file(args.annotation)
     #max_dist, max_ratio = parse_para(args)
     print('finish parsing in %s'%(str(time.time() - start_time)))
@@ -364,7 +359,7 @@ def main(args):
         else:
             anno = []
         for svtype in chr_dict[chr]:
-            para.append([chr_dict[chr][svtype], chr, anno, args.support, svtype, len(sample_ids)])
+            para.append([chr_dict[chr][svtype], chr, anno, args.support, svtype, len(sample_ids), args.supp])
     pool.map(ll_solve_chrom, para)
     pool.close()
     pool.join()
@@ -399,9 +394,6 @@ if __name__ == '__main__':
             type = str,
             default = None,
             help = 'annotation file to add')
-    parser.add_argument('--seperate_svtype',
-            action="store_true",
-            default = False)
     parser.add_argument('--seperate_chrom',
             action="store_true",
             default = False)
@@ -417,6 +409,13 @@ if __name__ == '__main__':
             type = float,
             default = 0.3,
             help = 'Maximum ratio of merging insertions[%(default)s]')
+    parser.add_argument('--comp_strand',
+            action="store_true",
+            default = False)
+    parser.add_argument('-supp',
+            type = str,
+            default = None,
+            help = 'support vector to filter')
  
     args = parser.parse_args(sys.argv[1:])
     if args.seperate_chrom:

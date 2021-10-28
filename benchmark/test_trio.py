@@ -109,6 +109,7 @@ def main_indel(vcf_file, output_file):
     else:
         rat = ccnt/ttot
     testtxt.write('%d,%d,%f\n'%(ccnt, ttot, rat))
+    print('%d,%d,%f'%(ccnt, ttot, rat))
     testtxt.close()
 
 if __name__ == '__main__':

@@ -119,7 +119,7 @@ def parse_annotation_dict(anno):
     return str
 
 # add semi_result into output_file in vcf format
-def output_result(semi_result, samples_num, output_file):
+def output_result(semi_result, samples_num, output_file, supp_filter):
     file = open(output_file, 'a')
     for item in semi_result:  # [CHROM, POS, CANDIDATE_RECORD, CIPOS, CILEN, LIST(RECORD), ANNOTATION]
         supp_vec = ''
@@ -130,6 +130,8 @@ def output_result(semi_result, samples_num, output_file):
                 #supp_id.append(sample_ids[i])
             else:
                 supp_vec += '0'
+        if supp_filter != None and supp_filter != supp_vec:
+            continue
         can_record = item[2]
         if can_record.qual == "." or can_record.qual is None:
             filter_lable = "PASS"

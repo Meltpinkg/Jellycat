@@ -14,7 +14,7 @@ run_test() {
     rm -r $1
     mkdir $1
     echo 'simulated:'
-    #bash src/run_merge_sample.sh $dir
+    bash src/run_merge_sample.sh $1
     #run_sim $1
     #python truvari/ss.py cmp_5x/summary.txt cmp_10x/summary.txt cmp_15x/summary.txt cmp_20x/summary.txt cmp_30x/summary.txt answer.txt
     echo 'TRIO:'

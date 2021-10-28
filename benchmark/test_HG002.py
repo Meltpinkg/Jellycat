@@ -15,7 +15,7 @@ def main(vcf_file):
             supp_dict[supp_vec] = 1
     #print('test HG002')
     for i in ['001', '011', '101', '111', '110', '010', '100']:
-        #print(i + ': ' + str(supp_dict[i]))
+        print(i + ': ' + str(supp_dict[i]))
         testtxt.write('%d,'%(supp_dict[i]))
     '''
     print(supp_dict['001'])
@@ -26,7 +26,8 @@ def main(vcf_file):
     print(supp_dict['010'])
     print(supp_dict['100'])
     '''
-    #print(supp_dict['011'] + supp_dict['101'] + supp_dict['110'] + supp_dict['111'])
+    print(supp_dict['011'] + supp_dict['101'] + supp_dict['110'] + supp_dict['111'])
+    print(tot)
     print((supp_dict['011'] + supp_dict['101'] + supp_dict['110'] + supp_dict['111']) / (tot))
     calmdown = supp_dict['011'] + supp_dict['101'] + supp_dict['110'] + supp_dict['111']
     testtxt.write('%d,%f\n'%(calmdown, calmdown/tot))
