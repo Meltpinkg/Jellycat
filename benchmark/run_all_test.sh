@@ -14,15 +14,15 @@ run_test() {
     rm -r $1
     mkdir $1
     echo 'simulated:'
-    bash src/run_merge_sample.sh $1
+    bash first_release/benchmark/run_merge_sample.sh $1
     #run_sim $1
     #python truvari/ss.py cmp_5x/summary.txt cmp_10x/summary.txt cmp_15x/summary.txt cmp_20x/summary.txt cmp_30x/summary.txt answer.txt
     echo 'TRIO:'
     python first_release/cuteSV_merge.py trio/trio_ccs.fofn $1/trio_mer.vcf ./ -t 16
-    python first_release/test_trio.py $1/trio_mer.vcf $1/trio_mer.tmp
+    python first_release/benchmark/test_trio.py $1/trio_mer.vcf $1/trio_mer.tmp
     echo 'HG002:'
     python first_release/cuteSV_merge.py HG002/HG002_cuteSV.fofn $1/2_mer.vcf ./ -t 16
-    python first_release/test_HG002.py $1/2_mer.vcf
+    python first_release/benchmark/test_HG002.py $1/2_mer.vcf
     rm nohup.out
 }
 :<<!
@@ -44,7 +44,7 @@ do
     done
 done
 !
-run_test 104
+run_test 111
 
 run_jas() {
     for i in {5x,10x,15x,20x,30x}

@@ -53,7 +53,7 @@ compress_type() {
 	nohup truvari bench -b benchmark/nstd_INV.vcf.gz -c INV.vcf.gz -o cmp_inv -p 0 -r 1000 -s 30 --sizemax 10000000 --multimatch
 	nohup truvari bench -b benchmark/nstd_DUP.vcf.gz -c DUP.vcf.gz -o cmp_dup -p 0 -r 1000 -s 30 --sizemax 10000000 --multimatch
 	nohup truvari bench -b benchmark/nstd_merge.vcf.gz -c $1/merged_samples_30x.vcf.gz -o cmp_all -p 0 -r 1000 -s 30 --sizemax 10000000 --multimatch
-	python first_release/ss.py cmp_ins/summary.txt cmp_del/summary.txt cmp_inv/summary.txt cmp_dup/summary.txt cmp_all/summary.txt answer.txt
+	python first_release/benchmark/ss.py cmp_ins/summary.txt cmp_del/summary.txt cmp_inv/summary.txt cmp_dup/summary.txt cmp_all/summary.txt answer.txt
 	#echo 'write to answer'
 }
 
@@ -71,7 +71,7 @@ compress_coverage() {
 	nohup truvari bench -b benchmark/nstd_merge.vcf.gz -c $1/merged_samples_15x.vcf.gz -o cmp_15x -p 0 -r 1000 -s 30 --sizemax 10000000 --multimatch
 	nohup truvari bench -b benchmark/nstd_merge.vcf.gz -c $1/merged_samples_20x.vcf.gz -o cmp_20x -p 0 -r 1000 -s 30 --sizemax 10000000 --multimatch
 	nohup truvari bench -b benchmark/nstd_merge.vcf.gz -c $1/merged_samples_30x.vcf.gz -o cmp_30x -p 0 -r 1000 -s 30 --sizemax 10000000 --multimatch
-	python first_release/ss.py cmp_5x/summary.txt cmp_10x/summary.txt cmp_15x/summary.txt cmp_20x/summary.txt cmp_30x/summary.txt answer.txt
+	python first_release/benchmark/ss.py cmp_5x/summary.txt cmp_10x/summary.txt cmp_15x/summary.txt cmp_20x/summary.txt cmp_30x/summary.txt answer.txt
 	#echo 'write to answer'
 }
 
@@ -88,7 +88,7 @@ compress_svlength() {
 	nohup truvari bench -b benchmark/nstd_merge.vcf.gz -c $1/merged_samples_30x.vcf.gz -o cmp_5 -p 0 -r 1000 -s 5000 --sizemax 9999 --multimatch
 	nohup truvari bench -b benchmark/nstd_merge.vcf.gz -c $1/merged_samples_30x.vcf.gz -o cmp_6 -p 0 -r 1000 -s 10000 --sizemax 10000000 --multimatch
 	nohup truvari bench -b benchmark/nstd_merge.vcf.gz -c $1/merged_samples_30x.vcf.gz -o cmp_7 -p 0 -r 1000 -s 30 --sizemax 10000000 --multimatch
-	python first_release/ss.py cmp_1/summary.txt cmp_2/summary.txt cmp_3/summary.txt cmp_4/summary.txt cmp_5/summary.txt cmp_6/summary.txt cmp_7/summary.txt answer.txt
+	python first_release/benchmark/ss.py cmp_1/summary.txt cmp_2/summary.txt cmp_3/summary.txt cmp_4/summary.txt cmp_5/summary.txt cmp_6/summary.txt cmp_7/summary.txt answer.txt
 	#echo 'write to answer'
 }
 
@@ -112,6 +112,6 @@ compress_sv() {
 	truvari bench -b benchmark/nstd_merge.vcf.gz -c $1 -o cmp_5 -p 0 -r 1000 -s 5000 --sizemax 9999 --multimatch
 	truvari bench -b benchmark/nstd_merge.vcf.gz -c $1 -o cmp_6 -p 0 -r 1000 -s 10000 --sizemax 10000000 --multimatch
 	truvari bench -b benchmark/nstd_merge.vcf.gz -c $1 -o cmp_7 -p 0 -r 1000 -s 30 --sizemax 10000000 --multimatch
-	python first_release/ss.py cmp_1/summary.txt cmp_2/summary.txt cmp_3/summary.txt cmp_4/summary.txt cmp_5/summary.txt cmp_6/summary.txt cmp_7/summary.txt answer.txt
+	python first_release/benchmark/ss.py cmp_1/summary.txt cmp_2/summary.txt cmp_3/summary.txt cmp_4/summary.txt cmp_5/summary.txt cmp_6/summary.txt cmp_7/summary.txt answer.txt
 	echo 'write to answer'
 }
