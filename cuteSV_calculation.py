@@ -186,7 +186,7 @@ def merge_forest(preline, candidates, records, id, svtype, debug):
     check whether merged by check_two_sv
     merge each two sample by km
 '''
-def cal_can(node, debug, svtype):
+def cal_can(node, debug, svtype, max_dist):
     import time
     start_time = time.time()
     pretime = -1
@@ -224,7 +224,7 @@ def cal_can(node, debug, svtype):
                 print(id)
                 print(candidates)
                 print(node[id][0].to_string())
-            if check_two_sv(svtype, candidates[0][1], candidates[0][2], node[id][0].start, node[id][0].end):
+            if check_two_sv(svtype, candidates[0][1], candidates[0][2], node[id][0].start, node[id][0].end, max_dist):
                 candidates[0][0].add(id)
                 candidates[0][1] = (candidates[0][4] * candidates[0][1] + node[id][0].start) / (candidates[0][4] + 1)
                 candidates[0][2] = (candidates[0][4] * candidates[0][2] + node[id][0].end) / (candidates[0][4] + 1)
@@ -252,7 +252,7 @@ def cal_can(node, debug, svtype):
             for record in node[id]:
                 dis.append([])
                 for candidate in candidates:
-                    if check_two_sv(svtype, candidate[1], candidate[2], record.start, record.end):
+                    if check_two_sv(svtype, candidate[1], candidate[2], record.start, record.end, max_dist) and candidate[3][0].chrom2 == record.chrom2:
                         distance = cal_distance(svtype, candidate[1], record.start, candidate[2], record.end)
                     else:
                         distance = -0x3f3f3f3f
@@ -296,7 +296,7 @@ def cal_can(node, debug, svtype):
                 merge_flag = False
                 for i in range(len(candidates)):
                     if id not in candidates[i][0]:
-                        if check_two_sv(svtype, candidates[i][1], candidates[i][2], record.start, record.end):
+                        if check_two_sv(svtype, candidates[i][1], candidates[i][2], record.start, record.end, max_dist) and candidates[i][3][0].chrom2 == record.chrom2:
                             merge_flag = True
                         st_bias[i] = abs(candidates[i][1] - record.start)
                         ed_bias[i] = abs(candidates[i][2] - record.end)
@@ -364,7 +364,7 @@ def cal_can(node, debug, svtype):
         record_temp = candidates[i][3]
         for j in range(i, len_can, 1):
             if j not in vis_id:
-                if len(id_temp & candidates[j][0]) == 0 and check_two_sv(svtype, candidates[i][1], candidates[i][2], candidates[j][1], candidates[j][2]):
+                if len(id_temp & candidates[j][0]) == 0 and check_two_sv(svtype, candidates[i][1], candidates[i][2], candidates[j][1], candidates[j][2], max_dist):
                     id_temp = id_temp | candidates[j][0]
                     st_temp = (st_temp + candidates[j][1]) / 2
                     ed_temp = (ed_temp + candidates[j][2]) / 2
@@ -410,32 +410,31 @@ def cal_distance(svtype, start1, start2, end1, end2):
         return -int( math.log(abs(start1 - start2) + 1) * 100 + math.log(abs(end1 - end2) + 1) * 1000 )
     
 
-def check_two_sv(svtype, start1, end1, start2, end2):
+def check_two_sv(svtype, start1, end1, start2, end2, max_dist):
     if svtype == 'DEL':
-        if check_two_sv_DEL(start1, end1, start2, end2):
+        if check_two_sv_DEL(start1, end1, start2, end2, max_dist):
             return True
     elif svtype == 'INV':
-        if check_two_sv_INV(start1, end1, start2, end2):
+        if check_two_sv_INV(start1, end1, start2, end2, max_dist):
             return True
     elif svtype == 'DUP':
-        if check_two_sv_DUP(start1, end1, start2, end2):
+        if check_two_sv_DUP(start1, end1, start2, end2, max_dist):
             return True
     elif svtype == 'BND':
-        if check_two_sv_BND(start1, end1, start2, end2):
+        if check_two_sv_BND(start1, end1, start2, end2, max_dist):
             return True
     else:
-        if check_two_sv_INS(start1, end1, start2, end2):
+        if check_two_sv_INS(start1, end1, start2, end2, max_dist):
             return True
     return False
 
-def check_two_sv_INS(start1, end1, start2, end2):
-    max_ins_dist = 1000
+def check_two_sv_INS(start1, end1, start2, end2, max_dist):
     max_ins_ratio = 0.3
     mean = max(end1, end2)
     if mean == 0:
         end1 = 1
         end2 = 1
-    if abs(start1 - start2) < max_ins_dist:
+    if abs(start1 - start2) < max_dist:
         if mean < 100 and min(end1, end2) / max(end1, end2) > max_ins_ratio:
             return True
         if 100 <= mean < 500 and min(end1, end2) / max(end1, end2) > max_ins_ratio:
@@ -444,13 +443,12 @@ def check_two_sv_INS(start1, end1, start2, end2):
             return True
         if mean >= 1000 and min(end1, end2) / max(end1, end2) > max_ins_ratio:
             return True
-    elif abs(start1 - start2) < max_ins_dist * 1.5:
+    elif abs(start1 - start2) < max_dist * 1.5:
         if min(end1, end2) / max(end1, end2) > 0.9:
             return True
     return False
 
-def check_two_sv_DEL(start1, end1, start2, end2):
-    max_dist = 1000
+def check_two_sv_DEL(start1, end1, start2, end2, max_dist):
     mean = max(end1, end2)
     if mean == 0:
         end1 = 1
@@ -469,8 +467,7 @@ def check_two_sv_DEL(start1, end1, start2, end2):
             return True
     return False
 
-def check_two_sv_INV(start1, end1, start2, end2):
-    max_dist = 1000
+def check_two_sv_INV(start1, end1, start2, end2, max_dist):
     mean = max(end1, end2)
     if mean == 0:
         end1 = 1
@@ -481,8 +478,7 @@ def check_two_sv_INV(start1, end1, start2, end2):
         return True
     return False
 
-def check_two_sv_DUP(start1, end1, start2, end2):
-    max_dist = 1000
+def check_two_sv_DUP(start1, end1, start2, end2, max_dist):
     mean = max(end1, end2)
     if mean == 0:
         end1 = 1
@@ -495,8 +491,7 @@ def check_two_sv_DUP(start1, end1, start2, end2):
             return True
     return False
 
-def check_two_sv_BND(start1, end1, start2, end2):
-    max_dist = 800
+def check_two_sv_BND(start1, end1, start2, end2, max_dist):
     if abs(start1 - start2) < max_dist and abs(end1 - end2) < max_dist:
         return True
     return False
