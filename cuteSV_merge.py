@@ -23,7 +23,7 @@
 #####################################################
 from cuteSV_calculation import *
 from cuteSV_linkedList import Record, parse_svtype
-from cuteSV_output import output_result, solve_annotation, generate_header
+from cuteSV_output import output_result, solve_annotation, generate_header, output_debug
 from pysam import VariantFile
 from multiprocessing import Pool
 from heapq import *
@@ -326,6 +326,8 @@ def ll_solve_chrom(para):
             result.append([candidate_record.chrom1, candidate_record.start, candidate_record, cipos, ciend, candidate_dict, annotation])
     #print('finish %s-%s in %s, total %dnodes'%(chrom, svtype, str(time.time() - start_time), len(result)))
     output_result(result, filenum, '%stemporary/%s_%s'%(work_dir, chrom, svtype), supp_filter)
+    if para[9]:
+        output_debug(result, filenum, '%sdebug/%s_%s'%(work_dir, chrom, svtype), supp_filter)
     print('finish %s-%s in %ss, total %d nodes'%(chrom, svtype, str(time.time() - start_time), len(result)))
 
 # move io into process
@@ -343,6 +345,12 @@ def main_ctrl(args):
     else:
         print('index directory existed.')
         exit(0)
+    if args.debug:
+        if not os.path.exists('%sdebug'%(args.work_dir)):
+            os.mkdir('%sdebug'%(args.work_dir))
+        else:
+            print('debug directory existed.')
+            exit(0)
     filenames = index_vcf(args.input, args.threads, args.work_dir)
     annotation_dict = parse_annotation_file(args.annotation)
     sample_ids, contiginfo = resolve_contigs(filenames, args.IOthreads)
@@ -359,7 +367,7 @@ def main_ctrl(args):
             anno = annotation_dict[contig]
         else:
             anno = []
-        para.append([filenames, contig, anno, args.support, args.IOthreads, len(sample_ids), args.supp, args.work_dir, args.max_dist])
+        para.append([filenames, contig, anno, args.support, args.IOthreads, len(sample_ids), args.supp, args.work_dir, args.max_dist, args.debug])
     pool.map(resolve_chrom, para)
     pool.close()
     pool.join()
@@ -367,8 +375,12 @@ def main_ctrl(args):
     os.system('cat %stemporary/* > %stemporary/vcf'%(args.work_dir, args.work_dir))
     os.system('sort -k 1,1 -k 2,2n %stemporary/vcf >> %s'%(args.work_dir, args.output))
     os.system('rm -r %sindex'%(args.work_dir))
-    #os.system('rm -r %stemporary'%(args.work_dir))
-    os.system('rm %stemporary/vcf'%(args.work_dir))
+    os.system('rm -r %stemporary'%(args.work_dir))
+    if args.debug:
+        os.system('cat %sdebug/* | sort -k 1,1 -k 2,2n > %svcf'%(args.work_dir, args.work_dir))
+        #os.system('sort -k 1,1 -k 2,2n %svcf'%(args.work_dir))
+        os.system('rm -r %sdebug'%(args.work_dir))
+    #os.system('rm %stemporary/vcf'%(args.work_dir))
     print('finish in %ss'%(round(time.time() - start_time, 6)))
 
 # not seperate chrom, all read in memory
@@ -397,7 +409,7 @@ def main(args):
         else:
             anno = []
         for svtype in chr_dict[chr]:
-            para.append([chr_dict[chr][svtype], chr, anno, args.support, svtype, len(sample_ids), args.supp, args.work_dir, args.max_dist])
+            para.append([chr_dict[chr][svtype], chr, anno, args.support, svtype, len(sample_ids), args.supp, args.work_dir, args.max_dist, args.debug])
     #para.append([chr_dict['2']['DEL'], '2', None, args.support, 'DEL', len(sample_ids), args.supp])
     pool.map(ll_solve_chrom, para)
     pool.close()
@@ -434,6 +446,9 @@ if __name__ == '__main__':
             default = None,
             help = 'annotation file to add')
     parser.add_argument('--massive',
+            action="store_true",
+            default = False)
+    parser.add_argument('--debug',
             action="store_true",
             default = False)
     parser.add_argument('-S', '--support',
