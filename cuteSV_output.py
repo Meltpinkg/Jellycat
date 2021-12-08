@@ -240,7 +240,7 @@ def output_result(semi_result, samples_num, output_file, supp_filter):
                 file.write("%s:"%(item[5][i].gt))
                 file.write("%s_%d-%s_%d\t"%(item[5][i].chrom1, item[5][i].start, item[5][i].chrom2, item[5][i].end))
             else:
-                file.write("./.:NAN:NAN:NAN\t")
+                file.write("./.:NAN\t")
         file.write('\n')
     file.close()
 

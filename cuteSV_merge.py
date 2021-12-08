@@ -457,7 +457,7 @@ if __name__ == '__main__':
             help = 'support vector number[%(default)s]')
     parser.add_argument('-max_dist',
             type = int,
-            default = 100,
+            default = 1000,
             help = 'Maximum distance[%(default)s]')
     parser.add_argument('-max_ins_ratio',
             type = float,

@@ -244,6 +244,7 @@ def cal_can(node, debug, svtype, max_dist):
             candidates = merge_forest(preline, candidates, node[id], id, svtype, debug)
             '''
             if debug == 1:
+                print('??')
                 print(candidates)
                 for record in node[id]:
                     print(record.to_string())
