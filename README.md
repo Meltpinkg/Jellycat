@@ -1,20 +1,21 @@
+# Jellycat 
 ---	
-### Installation
+### Installation 
 	$ git clone https://github.com/Meltpinkg/Jellycat.git && cd Jellycat/
 
 ---	
-### Introduction
+### Introduction 
+
 Jellycat is an ultra-fast and sensitive integration toolset especially for population-based SV calling and large callsets merging.
 ---
-### Dependence
+### Dependence 
 	
 	1. python3
 	2. pysam
 	3. numpy
 ---
-### Usage
-	cuteSV <sorted.bam> <reference.fa> <output.vcf> <work_dir>
-    python cuteSV_merge.py <input.txt> <output.vcf> <work_dir>
+### Usage 
+	python cuteSV_merge.py <input.txt> <output.vcf> <work_dir>
 
 
 | Parameter | Description | Default |
@@ -26,5 +27,5 @@ Jellycat is an ultra-fast and sensitive integration toolset especially for popul
 |-max_dist| Maximum distance for merging two SVs.|1000|
 
 ---
-### Contact
+### Contact 
 For advising, bug reporting and requiring help, please post on [Github Issue](https://github.com/Meltpinkg/Jellycat/issues) or contact sakura_qian@163.com.
