@@ -410,7 +410,6 @@ def cal_distance(svtype, start1, start2, end1, end2):
     else:
         return -int( math.log(abs(start1 - start2) + 1) * 100 + math.log(abs(end1 - end2) + 1) * 1000 )
     
-
 def check_two_sv(svtype, start1, end1, start2, end2, max_dist):
     if svtype == 'DEL':
         if check_two_sv_DEL(start1, end1, start2, end2, max_dist):
@@ -430,21 +429,20 @@ def check_two_sv(svtype, start1, end1, start2, end2, max_dist):
     return False
 
 def check_two_sv_INS(start1, end1, start2, end2, max_dist):
-    max_ins_ratio = 0.3
     mean = max(end1, end2)
     if mean == 0:
         end1 = 1
         end2 = 1
-    if abs(start1 - start2) < max_dist:
-        if mean < 100 and min(end1, end2) / max(end1, end2) > max_ins_ratio:
+    if abs(start1 - start2) < max_dist[0]:
+        if mean < 100 and min(end1, end2) / max(end1, end2) > max_dist[1]:
             return True
-        if 100 <= mean < 500 and min(end1, end2) / max(end1, end2) > max_ins_ratio:
+        if 100 <= mean < 500 and min(end1, end2) / max(end1, end2) > max_dist[1]:
             return True
-        if 500 <= mean < 1000 and min(end1, end2) / max(end1, end2) > max_ins_ratio:
+        if 500 <= mean < 1000 and min(end1, end2) / max(end1, end2) > max_dist[2]:
             return True
-        if mean >= 1000 and min(end1, end2) / max(end1, end2) > max_ins_ratio:
+        if mean >= 1000 and min(end1, end2) / max(end1, end2) > max_dist[2]:
             return True
-    elif abs(start1 - start2) < max_dist * 1.5:
+    elif abs(start1 - start2) < max_dist[0] * 1.5:
         if min(end1, end2) / max(end1, end2) > 0.9:
             return True
     return False
@@ -454,16 +452,16 @@ def check_two_sv_DEL(start1, end1, start2, end2, max_dist):
     if mean == 0:
         end1 = 1
         end2 = 1
-    if abs(start1 - start2) < max_dist:
-        if mean < 100 and min(end1, end2) / max(end1, end2) > 0.3:
+    if abs(start1 - start2) < max_dist[0]:
+        if mean < 100 and min(end1, end2) / max(end1, end2) > max_dist[1]:
             return True
-        if 100 <= mean < 500 and min(end1, end2) / max(end1, end2) > 0.4:
+        if 100 <= mean < 500 and min(end1, end2) / max(end1, end2) > max_dist[1]:
             return True
-        if 500 <= mean < 1000 and min(end1, end2) / max(end1, end2) > 0.2:
+        if 500 <= mean < 1000 and min(end1, end2) / max(end1, end2) > max_dist[2]:
             return True
-        if mean >= 1000 and min(end1, end2) / max(end1, end2) > 0.2:
+        if mean >= 1000 and min(end1, end2) / max(end1, end2) > max_dist[2]:
             return True
-    elif abs(start1 - start2) < max_dist * 1.5:
+    elif abs(start1 - start2) < max_dist[0] * 1.5:
         if min(end1, end2) / max(end1, end2) > 0.9:
             return True
     return False
@@ -475,7 +473,7 @@ def check_two_sv_INV(start1, end1, start2, end2, max_dist):
         end2 = 1
     #end1 = start1 + end1
     #end2 = start2 + end2
-    if abs(start1 - start2) < max_dist and abs(end1 - end2) < 300:
+    if abs(start1 - start2) < max_dist[0] and abs(end1 - end2) < max_dist[1]:
         return True
     return False
 
@@ -484,16 +482,18 @@ def check_two_sv_DUP(start1, end1, start2, end2, max_dist):
     if mean == 0:
         end1 = 1
         end2 = 1
-    if abs(start1 - start2) < max_dist:
-        if min(end1, end2) / max(end1, end2) > 0.3:
+    if abs(start1 - start2) < max_dist[0]:
+        if mean < 1000 and min(end1, end2) / max(end1, end2) > max_dist[1]:
             return True
-    elif abs(start1 - start2) < max_dist * 1.5:
+        if mean >= 1000 and min(end1, end2) / max(end1, end2) > max_dist[2]:
+            return True
+    elif abs(start1 - start2) < max_dist[0] * 1.5:
         if min(end1, end2) / max(end1, end2) > 0.9:
             return True
     return False
 
 def check_two_sv_BND(start1, end1, start2, end2, max_dist):
-    if abs(start1 - start2) < max_dist and abs(end1 - end2) < max_dist:
+    if abs(start1 - start2) < max_dist[0] and abs(end1 - end2) < max_dist[1]:
         return True
     return False
 

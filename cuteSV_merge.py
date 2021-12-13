@@ -32,6 +32,28 @@ import sys
 import time
 import argparse
 
+def parse_para(config_file):
+    para = []
+    with open(config_file) as f:
+        for line in f:
+            seq = line.strip().split(' ')
+            try:
+                para.append(int(seq[1]))
+            except:
+                para.append(float(seq[1]))
+    return para
+def parse_config_para(p, svtype):
+    if svtype == 'DEL':
+        return [p[1], p[7], p[8]]
+    if svtype == 'INV':
+        return [p[2], p[9], p[10]]
+    if svtype == 'DUP':
+        return [p[3], p[11], p[12]]
+    if svtype == 'BND':
+        return [p[4], p[13], p[14]]
+    else: # INS and other SV type
+        return [p[0], p[5], p[6]]
+
 def create_index(line, gz_filename):
     try:
         cmd = 'bgzip -c ' + line + ' > ' + gz_filename
@@ -70,20 +92,26 @@ def index_vcf(filenames, threads, work_dir):
 def parse_vcf(para):
     filename = para[0]
     idx = para[1]
+    filter_chrom_list = para[2]
     vcf_reader = VariantFile(filename, 'r')
     record_dict = dict()
     # contigs
     contiginfo = dict()
     for i in range(len(vcf_reader.header.contigs)):
+        chrom = str(vcf_reader.header.contigs[i].name)
+        if filter_chrom_list is not None and chrom not in filter_chrom_list:
+            continue
         try:
-            contiginfo[str(vcf_reader.header.contigs[i].name)] = int(vcf_reader.header.contigs[i].length)
+            contiginfo[chrom] = int(vcf_reader.header.contigs[i].length)
         except:
             print('contig length not find')
-            contiginfo[str(vcf_reader.header.contigs[i].name)] = 0
+            contiginfo[chrom] = 0
     record_dict['contig'] = contiginfo
     # records
     for record in vcf_reader.fetch():
         chr = record.chrom
+        if filter_chrom_list is not None and chr not in filter_chrom_list:
+            continue
         svtype = parse_svtype(record.info['SVTYPE'])
         if chr not in record_dict:
             record_dict[chr] = dict()
@@ -95,14 +123,17 @@ def parse_vcf(para):
     return record_dict
 
 # parse vcfs and return {chr -> {fileidx -> List(Record)}}
-def parse_vcfs(filenames, threads):
+def parse_vcfs(filenames, threads, filter_chrom):
     print('start parse vcfs...')
+    filter_chrom_list = None
+    if filter_chrom is not None:
+        filter_chrom_list = filter_chrom.split(',')
     pool = Pool(processes = threads)
     file_dict = dict()
     idx = 0
     with open(filenames, 'r') as f:
         for filename in f:
-            file_dict[idx] = pool.map_async(parse_vcf, [(filename.strip(), idx)])
+            file_dict[idx] = pool.map_async(parse_vcf, [(filename.strip(), idx, filter_chrom_list)])
             idx += 1
     pool.close()
     pool.join()
@@ -172,8 +203,6 @@ def resolve_chrom(para):
             if svtype not in type_dict:
                 type_dict[svtype] = dict()
             type_dict[svtype][fileidx] = records[svtype]
-            if chrom == 'chr1' and svtype == 'BND' and fileidx == 0:  ##DEBUG
-                print('BND file0 in resolve chrom: %d'%(len(type_dict[svtype][fileidx])))
     parsing_time = time.time() - start_time
     for svtype in type_dict:
         para[0] = type_dict[svtype]
@@ -195,7 +224,7 @@ def parse_vcf_chrom(para):
         record_dict[svtype].append(Record(record, idx))
     return record_dict
 
-def resolve_contigs(filenames, threads):
+def resolve_contigs(filenames, threads, filter_chrom_list):
     #print('start resolving contig infos...')
     start_time = time.time()
     sample_set = set()
@@ -204,7 +233,7 @@ def resolve_contigs(filenames, threads):
     result = list()
     pool = Pool(processes = threads)
     for filename in filenames:
-        result.append(pool.map_async(parse_contigs, [(filename)]))
+        result.append(pool.map_async(parse_contigs, [(filename, filter_chrom_list)])) #file_dict[idx] = pool.map_async(parse_vcf, [(filename.strip(), idx, filter_chrom_list)])
     pool.close()
     pool.join()
     for res in result:
@@ -226,15 +255,19 @@ def resolve_contigs(filenames, threads):
     return sample_ids, contiginfo
 
 def parse_contigs(para):
-    filename = para
+    filename = para[0]
+    filter_chrom_list = para[1]
     contiginfo = dict()
     vcf_reader = VariantFile(filename, 'r')
     for i in range(len(vcf_reader.header.contigs)):
+        chrom = str(vcf_reader.header.contigs[i].name)
+        if filter_chrom_list is not None and chrom not in filter_chrom_list:
+            continue
         try:
-            contiginfo[str(vcf_reader.header.contigs[i].name)] = int(vcf_reader.header.contigs[i].length)
+            contiginfo[chrom] = int(vcf_reader.header.contigs[i].length)
         except:
             print('contig length not find')
-            contiginfo[str(vcf_reader.header.contigs[i].name)] = 0
+            contiginfo[chrom] = 0
     contiginfo['sample'] = vcf_reader.header.samples[0]
     return contiginfo
 
@@ -306,8 +339,9 @@ def ll_solve_chrom(para):
     filenum = para[5]
     supp_filter = para[6]
     work_dir = para[7]
-    max_dist = para[8]
-    sort_ans = first_sort(vcf_files, max_dist, filenum)
+    config_para = para[8]
+    max_dist = parse_config_para(config_para, svtype)
+    sort_ans = first_sort(vcf_files, max_dist[0], filenum)
     #print('finish sorting in %s'%(str(time.time() - start_time)))
     result = list()
     idx = 0
@@ -353,7 +387,9 @@ def main_ctrl(args):
             exit(0)
     filenames = index_vcf(args.input, args.threads, args.work_dir)
     annotation_dict = parse_annotation_file(args.annotation)
-    sample_ids, contiginfo = resolve_contigs(filenames, args.IOthreads)
+    filter_chrom_list = None if args.filter_chrom is None else args.filter_chrom.split(',')
+    config_para = parse_para(os.path.abspath(sys.argv[0])[:(os.path.abspath(sys.argv[0]).rfind('/') + 1)] + 'config')
+    sample_ids, contiginfo = resolve_contigs(filenames, args.IOthreads, filter_chrom_list)
     print('finish parsing in %ss'%(round(time.time() - start_time, 6)))
     #print('%d samples find'%(len(sample_ids)))
     file = open(args.output, 'w')
@@ -367,7 +403,7 @@ def main_ctrl(args):
             anno = annotation_dict[contig]
         else:
             anno = []
-        para.append([filenames, contig, anno, args.support, args.IOthreads, len(sample_ids), args.supp, args.work_dir, args.max_dist, args.debug])
+        para.append([filenames, contig, anno, args.support, args.IOthreads, len(sample_ids), args.supp, args.work_dir, config_para, args.debug])
     pool.map(resolve_chrom, para)
     pool.close()
     pool.join()
@@ -386,14 +422,14 @@ def main_ctrl(args):
 # not seperate chrom, all read in memory
 def main(args):
     start_time = time.time()
-    chr_dict, sample_ids, contiginfo, order = parse_vcfs(args.input, args.IOthreads)
+    chr_dict, sample_ids, contiginfo, order = parse_vcfs(args.input, args.IOthreads, args.filter_chrom)
     if args.supp != None and len(sample_ids) != len(args.supp):
         print('parameter \'supp\' doesn\'t match number of files input in %s'%(args.input))
         exit(0)
     if args.work_dir[-1] != '/':
         args.work_dir += '/'
     annotation_dict = parse_annotation_file(args.annotation)
-    #max_dist, max_ratio = parse_para(args)
+    config_para = parse_para(os.path.abspath(sys.argv[0])[:(os.path.abspath(sys.argv[0]).rfind('/') + 1)] + 'config')
     print('finish parsing in %s'%(str(time.time() - start_time)))
     file = open(args.output, 'w')
     generate_header(file, contiginfo, sample_ids)
@@ -409,7 +445,7 @@ def main(args):
         else:
             anno = []
         for svtype in chr_dict[chr]:
-            para.append([chr_dict[chr][svtype], chr, anno, args.support, svtype, len(sample_ids), args.supp, args.work_dir, args.max_dist, args.debug])
+            para.append([chr_dict[chr][svtype], chr, anno, args.support, svtype, len(sample_ids), args.supp, args.work_dir, config_para, args.debug])
     #para.append([chr_dict['2']['DEL'], '2', None, args.support, 'DEL', len(sample_ids), args.supp])
     pool.map(ll_solve_chrom, para)
     pool.close()
@@ -470,6 +506,10 @@ if __name__ == '__main__':
             type = str,
             default = None,
             help = 'support vector to filter')
+    parser.add_argument('-filter_chrom',
+            type = str,
+            default = None,
+            help = 'only handle these chromosomes, separate by comma and no space')
  
     args = parser.parse_args(sys.argv[1:])
     if args.massive:

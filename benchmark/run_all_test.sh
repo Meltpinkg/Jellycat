@@ -13,6 +13,7 @@ run_sim() {
 run_test() {
     rm -r $1
     mkdir $1
+    rm answer.txt
     echo 'simulated:'
     bash first_release/benchmark/run_merge_sample.sh $1
     #run_sim $1
@@ -44,7 +45,7 @@ do
     done
 done
 !
-run_test 111
+run_test 1212
 
 run_jas() {
     for i in {5x,10x,15x,20x,30x}
