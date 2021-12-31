@@ -71,9 +71,9 @@ def main(vcf_file, output_file):
     print(cnt / tot)
     return cnt, tot
 
-def main_indel(vcf_file, output_file):
+def main_indel(vcf_file, output_file, answer_file):
     output = open(output_file, 'w')
-    testtxt = open('answer.txt', 'a')
+    testtxt = open(answer_file, 'a')
     cnt = dict()
     tot = dict()
     with open(vcf_file, 'r') as f:
@@ -101,17 +101,18 @@ def main_indel(vcf_file, output_file):
         if svtype == 'BND' and 'BND' not in cnt:
             svtype = 'TRA'
         print('%s %f'%(svtype, cnt[svtype] / tot[svtype]))
-        testtxt.write('%f,'%(cnt[svtype] / tot[svtype]))
+        testtxt.write('%f\n'%(cnt[svtype] / tot[svtype]))
         ccnt += cnt[svtype]
         ttot += tot[svtype]
     if ttot == 0:
         rat = -1
     else:
         rat = ccnt/ttot
-    testtxt.write('%d,%d,%f\n'%(ccnt, ttot, rat))
+    testtxt.write('%d\n%d\n%f\n\n'%(ccnt, ttot, rat))
     print('%d,%d,%f'%(ccnt, ttot, rat))
     testtxt.close()
 
+# read vcf from argv[1] and output the performance in argv[3] 
 if __name__ == '__main__':
     #main(sys.argv[1], sys.argv[2])
-    main_indel(sys.argv[1], sys.argv[2])
+    main_indel(sys.argv[1], sys.argv[2], sys.argv[3])

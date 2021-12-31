@@ -41,7 +41,6 @@ parse_nstd() {
 compress_type() {
 	#compress_type folder
 	echo 'COMPRESS TYPE'
-	#run_src 3 30x $1
 	parse_svtype $1/merged_samples_30x.vcf
 	rm -r cmp_ins/ cmp_del/ cmp_inv/ cmp_dup/ cmp_all/
 	nohup truvari bench -b benchmark/nstd_INS.vcf.gz -c INS.vcf.gz -o cmp_ins -p 0 -r 1000 -s 30 --sizemax 10000000 --multimatch
@@ -73,8 +72,6 @@ compress_coverage() {
 compress_svlength() {
 	# compress_svlength folder
 	echo 'COMPRESS SVLENGTH'
-	run_src 3 30x $1
-	#echo 'finish merge'
 	rm -r cmp_1/ cmp_2/ cmp_3/ cmp_4/ cmp_5/ cmp_6/ cmp_7/
 	nohup truvari bench -b benchmark/nstd_merge.vcf.gz -c $1/merged_samples_30x.vcf.gz -o cmp_1 -p 0 -r 1000 -s 30 --sizemax 99 --multimatch
 	nohup truvari bench -b benchmark/nstd_merge.vcf.gz -c $1/merged_samples_30x.vcf.gz -o cmp_2 -p 0 -r 1000 -s 100 --sizemax 499 --multimatch

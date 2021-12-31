@@ -1,8 +1,8 @@
 from pysam import VariantFile
 import sys
 
-def main(vcf_file):
-    testtxt = open('answer.txt', 'a')
+def main(vcf_file, answer_file):
+    testtxt = open(answer_file, 'a')
     supp_dict = dict()
     vcf_reader = VariantFile(vcf_file, 'r')
     tot = 0
@@ -16,7 +16,7 @@ def main(vcf_file):
     #print('test HG002')
     for i in ['001', '011', '101', '111', '110', '010', '100']:
         print(i + ': ' + str(supp_dict[i]))
-        testtxt.write('%d,'%(supp_dict[i]))
+        testtxt.write('%d\n'%(supp_dict[i]))
     '''
     print(supp_dict['001'])
     print(supp_dict['011'])
@@ -30,8 +30,8 @@ def main(vcf_file):
     print(tot)
     print((supp_dict['011'] + supp_dict['101'] + supp_dict['110'] + supp_dict['111']) / (tot))
     calmdown = supp_dict['011'] + supp_dict['101'] + supp_dict['110'] + supp_dict['111']
-    testtxt.write('%d,%f\n'%(calmdown, calmdown/tot))
+    testtxt.write('%d\n%d\n%f\n\n'%(calmdown, tot, calmdown/tot))
     testtxt.close()
 
 if __name__ == '__main__':
-    main(sys.argv[1])
+    main(sys.argv[1], sys.argv[2])

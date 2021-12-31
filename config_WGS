@@ -1,0 +1,15 @@
+max_dist_ins 1000
+max_dist_del 1000
+max_dist_inv 1000
+max_dist_dup 1000
+max_dist_tra 1000
+max_ratio_ins_short 0.7
+max_ratio_ins_long 0.7
+max_ratio_del_short 0.7
+max_ratio_del_long 0.7
+max_ratio_inv_short 500
+max_ratio_inv_long 500
+max_ratio_dup_short 0.7
+max_ratio_dup_long 0.7
+max_ratio_tra_short 1000
+max_ratio_tra_long 1000

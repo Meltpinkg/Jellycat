@@ -218,7 +218,11 @@ def parse_vcf_chrom(para):
     record_dict = dict() # svtype -> List(Record)
     # records
     for record in vcf_reader.fetch(chrom):
-        svtype = parse_svtype(record.info['SVTYPE'])
+        try:
+            svtype = parse_svtype(record.info['SVTYPE'])
+        except:
+            print('Warning: passing invalid SV at ' + str(record.pos))
+            continue
         if svtype not in record_dict:
             record_dict[svtype] = []
         record_dict[svtype].append(Record(record, idx))
@@ -388,7 +392,14 @@ def main_ctrl(args):
     filenames = index_vcf(args.input, args.threads, args.work_dir)
     annotation_dict = parse_annotation_file(args.annotation)
     filter_chrom_list = None if args.filter_chrom is None else args.filter_chrom.split(',')
-    config_para = parse_para(os.path.abspath(sys.argv[0])[:(os.path.abspath(sys.argv[0]).rfind('/') + 1)] + 'config')
+    if args.wgs:
+        config_para = parse_para(os.path.abspath(sys.argv[0])[:(os.path.abspath(sys.argv[0]).rfind('/') + 1)] + 'config_WGS')
+    else:
+        config_para = parse_para(os.path.abspath(sys.argv[0])[:(os.path.abspath(sys.argv[0]).rfind('/') + 1)] + 'config')
+    if args.max_dist != -1:
+        for i in range(5):
+            config_para[i] = args.max_dist
+    
     sample_ids, contiginfo = resolve_contigs(filenames, args.IOthreads, filter_chrom_list)
     print('finish parsing in %ss'%(round(time.time() - start_time, 6)))
     #print('%d samples find'%(len(sample_ids)))
@@ -429,7 +440,14 @@ def main(args):
     if args.work_dir[-1] != '/':
         args.work_dir += '/'
     annotation_dict = parse_annotation_file(args.annotation)
-    config_para = parse_para(os.path.abspath(sys.argv[0])[:(os.path.abspath(sys.argv[0]).rfind('/') + 1)] + 'config')
+    if args.wgs:
+        config_para = parse_para(os.path.abspath(sys.argv[0])[:(os.path.abspath(sys.argv[0]).rfind('/') + 1)] + 'config_WGS')
+    else:
+        config_para = parse_para(os.path.abspath(sys.argv[0])[:(os.path.abspath(sys.argv[0]).rfind('/') + 1)] + 'config')
+    if args.max_dist != -1:
+        for i in range(5):
+            config_para[i] = args.max_dist
+
     print('finish parsing in %s'%(str(time.time() - start_time)))
     file = open(args.output, 'w')
     generate_header(file, contiginfo, sample_ids)
@@ -493,7 +511,7 @@ if __name__ == '__main__':
             help = 'support vector number[%(default)s]')
     parser.add_argument('-max_dist',
             type = int,
-            default = 1000,
+            default = -1,
             help = 'Maximum distance[%(default)s]')
     parser.add_argument('-max_ins_ratio',
             type = float,
@@ -510,6 +528,10 @@ if __name__ == '__main__':
             type = str,
             default = None,
             help = 'only handle these chromosomes, separate by comma and no space')
+    parser.add_argument('--wgs',
+            action="store_true",
+            default = False,
+            help = 'merging SVs from WGS callers')
  
     args = parser.parse_args(sys.argv[1:])
     if args.massive:

@@ -397,18 +397,22 @@ def cal_can(node, debug, svtype, max_dist):
 # distance = cal_distance(svtype, candidate[1], record.start, candidate[2], record.end)
 def cal_distance(svtype, start1, start2, end1, end2):
     if svtype == 'DEL':
-        bias = abs((max(end1, end2) + 1) / (min(end1, end2) + 1) * 10)
-        return -int( math.log(abs(start1 - start2) + 1) * 100 + math.log(bias) * 1000 )
+        #bias = abs((max(end1, end2) + 1) / (min(end1, end2) + 1) * 10)
+        #return -int( math.log(abs(start1 - start2) + 1) * 100 + math.log(bias) * 1000 )
+        #return -int( math.log(abs(start1 - start2) + 1) * 100 + math.log(abs(end1 - end2) + 1) * 1000 )
+        return - (math.log(abs(start1 - start2) + 1) + math.log(abs(end1 - end2) + 1) * 10) * 100
     if svtype == 'INV':
         return -abs(start1 - start2) - abs(end1 - end2) - 1
     if svtype == 'DUP':
         return -abs(start1 - start2) - abs(end1 - end2) - 1
     if svtype == 'BND':
-        bias = abs((max(end1, end2) + 1) / (min(end1, end2) + 1) * 10)
-        return -int( math.log(abs(start1 - start2) + 1) * 100 + math.log(bias) * 1000 )
+        #bias = abs((max(end1, end2) + 1) / (min(end1, end2) + 1) * 10)
+        #return -int( math.log(abs(start1 - start2) + 1) * 100 + math.log(bias) * 1000 )
+        return -abs(start1 - start2) - abs(end1 - end2) - 1
     #if svtype == 'INS':
     else:
-        return -int( math.log(abs(start1 - start2) + 1) * 100 + math.log(abs(end1 - end2) + 1) * 1000 )
+        #return -int( math.log(abs(start1 - start2) + 1) * 100 + math.log(abs(end1 - end2) + 1) * 1000 )
+        return - (math.log(abs(start1 - start2) + 1) + math.log(abs(end1 - end2) + 1) * 10) * 100
     
 def check_two_sv(svtype, start1, end1, start2, end2, max_dist):
     if svtype == 'DEL':
@@ -473,8 +477,13 @@ def check_two_sv_INV(start1, end1, start2, end2, max_dist):
         end2 = 1
     #end1 = start1 + end1
     #end2 = start2 + end2
-    if abs(start1 - start2) < max_dist[0] and abs(end1 - end2) < max_dist[1]:
-        return True
+    #if abs(start1 - start2) < max_dist[0] and abs(end1 - end2) < max_dist[1]:
+    #    return True
+    if abs(start1 - start2) < max_dist[0]:
+        if mean < 1000 and min(end1, end2) / max(end1, end2) > max_dist[1]:
+            return True
+        if mean >= 1000 and min(end1, end2) / max(end1, end2) > max_dist[2]:
+            return True
     return False
 
 def check_two_sv_DUP(start1, end1, start2, end2, max_dist):
