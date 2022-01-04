@@ -206,16 +206,20 @@ def output_result(semi_result, samples_num, output_file, supp_filter):
                 info_list += ';' + anno_str
             #print(info_list)
         # calculate AF
-        af = 0
+        allele_count0 = 0
+        allele_count1 = 0
         for i in range(samples_num):
             if i in item[5]:
+                if item[5][i].gt == '0/0':
+                    allele_count0 += 2
                 if item[5][i].gt == '0/1':
-                    af += 1
+                    allele_count0 += 1
+                    allele_count1 += 1
                 elif item[5][i].gt == '1/1':
-                    af += 2
-        info_list += ';AC=' + str(af)
-        af = af / samples_num / 2
-        info_list += ';AF=' + str(round(af, 4))
+                    allele_count1 += 2
+        info_list += ';AC=' + str(allele_count1)
+        allele_frequency = allele_count1 / (allele_count0 + allele_count1)
+        info_list += ';AF=' + str(round(allele_frequency, 4))
         file.write("{CHR}\t{POS}\t{ID}\t{REF}\t{ALT}\t{QUAL}\t{PASS}\t{INFO}\t{FORMAT}\t".format(
             CHR = can_record.chrom1, 
             POS = can_record.start,
@@ -374,7 +378,7 @@ def generate_header(file, contiginfo, sample_ids):
     file.write("##INFO=<ID=STRAND,Number=A,Type=String,Description=\"Strand orientation of the adjacency in BEDPE format (DEL:+-, DUP:-+, INV:++/--)\">\n")
     #file.write("##INFO=<ID=RNAMES,Number=.,Type=String,Description=\"Supporting read names of SVs (comma separated)\">\n")
     file.write("##INFO=<ID=SUPP,Number=1,Type=Integer,Description=\"Number of samples supporting the variant\">\n")
-    file.write("##INFO=<ID=SUPP_ID,Number=.,Type=String,Description=\"Samples supporting the variant\">\n")
+    #file.write("##INFO=<ID=SUPP_ID,Number=.,Type=String,Description=\"Samples supporting the variant\">\n")
     file.write("##INFO=<ID=SUPP_VEC,Number=1,Type=String,Description=\"Samples id supporting the variant\">\n")
     file.write("##INFO=<ID=AC,Number=1,Type=Integer,Description=\"Allele Count\">\n")
     file.write("##INFO=<ID=AF,Number=1,Type=Float,Description=\"Allele frequency\">\n")
