@@ -218,7 +218,10 @@ def output_result(semi_result, samples_num, output_file, supp_filter):
                 elif item[5][i].gt == '1/1':
                     allele_count1 += 2
         info_list += ';AC=' + str(allele_count1)
-        allele_frequency = allele_count1 / (allele_count0 + allele_count1)
+        if allele_count0 + allele_count1 == 0:
+            allele_frequency = 0.0
+        else:
+            allele_frequency = allele_count1 / (allele_count0 + allele_count1)
         info_list += ';AF=' + str(round(allele_frequency, 4))
         file.write("{CHR}\t{POS}\t{ID}\t{REF}\t{ALT}\t{QUAL}\t{PASS}\t{INFO}\t{FORMAT}\t".format(
             CHR = can_record.chrom1, 

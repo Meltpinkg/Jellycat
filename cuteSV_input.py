@@ -215,3 +215,38 @@ def parse_annotation_file(annotation_file):
             annotation_dict[chr].append([int(seq[3]), int(seq[4]), info_dict])    
     print(time.time() - start_time)
     return annotation_dict
+
+def pre_vcfs(filenames, threads, filter_chrom_list):
+    result = list()
+    pool = Pool(processes = threads)
+    for filename in filenames:
+        result.append(pool.map_async(pre_vcf, [(filename, filter_chrom_list)]))
+    pool.close()
+    pool.join()
+    re = list()
+    for res in result:
+        temp = res.get()[0]
+        re.append(temp)
+    print(re)
+
+def pre_vcf(para):
+    filename = para[0]
+    filter_chrom_list = para[1]
+    contiginfo = dict()
+    contigs = set()
+    vcf_reader = VariantFile(filename, 'r')
+    for i in range(len(vcf_reader.header.contigs)):
+        chrom = str(vcf_reader.header.contigs[i].name)
+        if filter_chrom_list is not None and chrom not in filter_chrom_list:
+            continue
+        try:
+            contiginfo[chrom] = int(vcf_reader.header.contigs[i].length)
+        except:
+            print('contig length not find')
+            contiginfo[chrom] = 0
+    contiginfo['sample'] = vcf_reader.header.samples[0]
+    for record in vcf_reader.fetch():
+        contigs.add(record.chrom)
+    return contiginfo, contigs
+
+#pre_vcfs(['/data/2/sqcao/data/merge_data/20x/CHM1_cuteSV.vcf', '/data/2/sqcao/data/merge_data/20x/CHM13_cuteSV.vcf', '/data/2/sqcao/data/merge_data/trio/HG002_CCS_svim.vcf'], 3, None)
