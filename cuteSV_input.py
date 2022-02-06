@@ -6,14 +6,16 @@ import time
 
 def create_index(line, gz_filename):
     try:
-        cmd = 'bgzip -c ' + line + ' > ' + gz_filename
-        os.system(cmd)
-        os.system('tabix -p vcf ' + gz_filename)
+        os.system('bcftools sort ' + line + ' -o ' + gz_filename)
+        os.system('bgzip ' + gz_filename)
+        #cmd = 'bgzip -c ' + line + ' > ' + gz_filename
+        #os.system(cmd)
+        os.system('tabix ' + gz_filename + '.gz')
     except Exception as ee:
         print(ee)
 
 # index vcf files and output .gz in work_dir
-def index_vcf(filenames, threads, work_dir):
+def index_vcf_old(filenames, threads, work_dir):
     #print('start indexing...')
     start_time = time.time()
     process_pool = Pool(processes = threads)
@@ -32,6 +34,29 @@ def index_vcf(filenames, threads, work_dir):
             else:
                 print('input error')
                 continue
+    process_pool.close()
+    process_pool.join()
+    print('finish indexing in %ss'%(round(time.time() - start_time, 6)))
+    #print(vcfgz_filenames)
+    return vcfgz_filenames
+
+def index_vcf(filenames, threads, work_dir):
+    #print('start indexing...')
+    start_time = time.time()
+    process_pool = Pool(processes = threads)
+    vcfgz_filenames = []
+    idx = 0
+    with open(filenames, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if line[-3:] == 'vcf':
+                gz_filename = work_dir + 'index/' + str(idx) + '.vcf'
+                process_pool.apply_async(create_index, (line, gz_filename)) # line -> gz_filename
+                vcfgz_filenames.append(gz_filename + '.gz')
+            else:
+                print('input error')
+                continue
+            idx += 1    
     process_pool.close()
     process_pool.join()
     print('finish indexing in %ss'%(round(time.time() - start_time, 6)))
@@ -216,24 +241,52 @@ def parse_annotation_file(annotation_file):
     print(time.time() - start_time)
     return annotation_dict
 
+'''
+    contiginfo(dict) key:chrom, value:length
+    contig_svtype(dict) key:chrom, value:set containing svtypes
+'''
 def pre_vcfs(filenames, threads, filter_chrom_list):
-    result = list()
+    start_time = time.time()
+    pool_result = list()
     pool = Pool(processes = threads)
     for filename in filenames:
-        result.append(pool.map_async(pre_vcf, [(filename, filter_chrom_list)]))
+        pool_result.append(pool.map_async(pre_vcf, [(filename, filter_chrom_list)]))
     pool.close()
     pool.join()
-    re = list()
-    for res in result:
-        temp = res.get()[0]
-        re.append(temp)
-    print(re)
+    sample_set = set() # remove dup
+    sample_ids = list()
+    contiginfo = dict()
+    contig_svtype = dict() # [dict[chrom][svtype]]
+    for res in pool_result:
+        temp = res.get()[0] # temp[0]:contiginfo, temp[1]:contigs, temp[2]:sampleid
+        # trans sample id
+        sample_id = temp[2]
+        temp_sample_id = sample_id
+        temp_idx = 0
+        while temp_sample_id in sample_set:
+            temp_sample_id = sample_id + '_' + str(temp_idx)
+            temp_idx += 1
+        sample_ids.append(temp_sample_id)
+        sample_set.add(temp_sample_id)
+        # contig info length
+        for contig in temp[0]:
+            if contig not in contiginfo:
+                contiginfo[contig] = temp[0][contig]
+        # contig including svtype
+        for contig in temp[1]: # contig -> set()
+            if contig not in contig_svtype:
+                contig_svtype[contig] = set()
+            contig_svtype[contig] = contig_svtype[contig] | temp[1][contig]
+    print('finish pre vcfs in %ss'%(round(time.time() - start_time, 6)))
+    #print(contiginfo)
+    #print(contig_svtype)
+    return sample_ids, contiginfo, contig_svtype
 
 def pre_vcf(para):
     filename = para[0]
     filter_chrom_list = para[1]
     contiginfo = dict()
-    contigs = set()
+    contigs = dict()
     vcf_reader = VariantFile(filename, 'r')
     for i in range(len(vcf_reader.header.contigs)):
         chrom = str(vcf_reader.header.contigs[i].name)
@@ -244,9 +297,37 @@ def pre_vcf(para):
         except:
             print('contig length not find')
             contiginfo[chrom] = 0
-    contiginfo['sample'] = vcf_reader.header.samples[0]
     for record in vcf_reader.fetch():
-        contigs.add(record.chrom)
-    return contiginfo, contigs
+        chrom = record.chrom
+        try:
+            svtype = parse_svtype(record.info['SVTYPE'])
+        except:
+            print('Warning: passing invalid SV at ' + str(record.pos))
+            continue
+        if chrom not in contigs:
+            contigs[chrom] = set()
+        contigs[chrom].add(svtype)
+    return contiginfo, contigs, vcf_reader.header.samples[0]
 
 #pre_vcfs(['/data/2/sqcao/data/merge_data/20x/CHM1_cuteSV.vcf', '/data/2/sqcao/data/merge_data/20x/CHM13_cuteSV.vcf', '/data/2/sqcao/data/merge_data/trio/HG002_CCS_svim.vcf'], 3, None)
+
+def extract_chr_type(para):
+    filename = para[0]
+    chrom = para[1]
+    idx = para[2]
+    svtype = para[3]
+    vcf_reader = VariantFile(filename, 'r')
+    record_list = []
+    # records
+    try:
+        for record in vcf_reader.fetch(chrom):
+            try:
+                thistype = parse_svtype(record.info['SVTYPE'])
+            except:
+                print('Warning: passing invalid SV at ' + str(record.pos))
+                continue
+            if svtype == thistype:
+                record_list.append(Record(record, idx))
+    except:
+        pass
+    return record_list

@@ -45,7 +45,7 @@ do
     done
 done
 !
-run_test 1218
+run_test 0129
 
 run_jas() {
     for i in {5x,10x,15x,20x,30x}

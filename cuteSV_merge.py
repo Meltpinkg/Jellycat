@@ -23,7 +23,7 @@
 #####################################################
 from cuteSV_input import *
 from cuteSV_calculation import *
-from cuteSV_output import output_result, solve_annotation, generate_header, output_debug
+from cuteSV_output import output_result, solve_annotation, generate_header
 from multiprocessing import Pool
 from heapq import *
 import os
@@ -55,7 +55,7 @@ def parse_config_para(p, svtype):
 
 # vcf_files->dict{fileidx->list(Record)}  only one svtype
 # return list[]
-def first_sort(vcf_files, max_dist, filenum):
+def first_sort(vcf_files, max_dist, filenum, x):
     heap = []
     ans = []
     start_down = 0
@@ -88,7 +88,7 @@ def first_sort(vcf_files, max_dist, filenum):
 
 def ll_solve_chrom(para):
     start_time = time.time()
-    vcf_files = para[0]
+    vcf_files = para[0]  # vcf_files->dict{fileidx->list(Record)}
     chrom = para[1]
     anno = para[2]
     support = para[3]
@@ -98,7 +98,7 @@ def ll_solve_chrom(para):
     work_dir = para[7]
     config_para = para[8]
     max_dist = parse_config_para(config_para, svtype)
-    sort_ans = first_sort(vcf_files, max_dist[0], filenum)
+    sort_ans = first_sort(vcf_files, max_dist[0], filenum, (chrom, svtype))
     #print('finish sorting in %s'%(str(time.time() - start_time)))
     result = list()
     idx = 0
@@ -117,8 +117,6 @@ def ll_solve_chrom(para):
             result.append([candidate_record.chrom1, candidate_record.start, candidate_record, cipos, ciend, candidate_dict, annotation])
     #print('finish %s-%s in %s, total %dnodes'%(chrom, svtype, str(time.time() - start_time), len(result)))
     output_result(result, filenum, '%stemporary/%s_%s'%(work_dir, chrom, svtype), supp_filter)
-    if para[9]:
-        output_debug(result, filenum, '%sdebug/%s_%s'%(work_dir, chrom, svtype), supp_filter)
     print('finish %s-%s in %ss, total %d nodes'%(chrom, svtype, str(time.time() - start_time), len(result)))
 
 
@@ -160,6 +158,105 @@ def resolve_chrom(para):
     print('finish chrom %s in %f, %f, %fs'%(chrom, reading_time, parsing_time, time.time() - start_time))
 
 
+def conquer_merge(vcf_files, chrom, anno, support, svtype, filenum, supp_filter, work_dir, config_para):
+    start_time = time.time()
+    max_dist = parse_config_para(config_para, svtype)
+    sort_ans = first_sort(vcf_files, max_dist[0], filenum, (chrom, svtype))
+    #print('finish sorting in %s'%(str(time.time() - start_time)))
+    result = list()
+    idx = 0
+    for node in sort_ans:
+        idx += 1
+        candidates = cal_can(node, 0, svtype, max_dist)
+        for candidate in candidates: # candidate -> list(Record)
+            if len(candidate) < support:
+                continue
+            candidate_idx, cipos, ciend = cal_center(candidate)
+            candidate_record = candidate[candidate_idx]  # Record
+            annotation = solve_annotation(candidate_record.type, anno, candidate_record.start, candidate_record.end)  # dict{'gene_id' -> str}
+            candidate_dict = dict()
+            for can in candidate:
+                candidate_dict[can.source] = can
+            result.append([candidate_record.chrom1, candidate_record.start, candidate_record, cipos, ciend, candidate_dict, annotation])
+    #print('finish %s-%s in %s, total %dnodes'%(chrom, svtype, str(time.time() - start_time), len(result)))
+    output_result(result, filenum, '%stemporary/%s_%s'%(work_dir, chrom, svtype), supp_filter)
+    print('finish %s-%s in %ss, total %d nodes'%(chrom, svtype, str(time.time() - start_time), len(result)))
+
+def fighting(args):
+    start_time = time.time()
+    if args.work_dir[-1] != '/':
+        args.work_dir += '/'
+    if not os.path.exists('%stemporary'%(args.work_dir)):
+        os.mkdir('%stemporary'%(args.work_dir))
+    else:
+        print('temporary directory existed.')
+        exit(0)
+    if not os.path.exists('%sindex'%(args.work_dir)):
+        os.mkdir('%sindex'%(args.work_dir))
+    else:
+        print('index directory existed.')
+        exit(0)
+    filenames = index_vcf(args.input, args.threads, args.work_dir)
+    annotation_dict = parse_annotation_file(args.annotation)
+    filter_chrom_list = None if args.filter_chrom is None else args.filter_chrom.split(',')
+    if args.wgs:
+        config_para = parse_para(os.path.abspath(sys.argv[0])[:(os.path.abspath(sys.argv[0]).rfind('/') + 1)] + 'config_WGS')
+    else:
+        config_para = parse_para(os.path.abspath(sys.argv[0])[:(os.path.abspath(sys.argv[0]).rfind('/') + 1)] + 'config')
+    if args.max_dist != -1:
+        for i in range(5):
+            config_para[i] = args.max_dist
+    
+    #sample_ids, contiginfo, contigs = pre_vcfs(filenames, args.IOthreads, filter_chrom_list)
+    sample_ids, contiginfo = resolve_contigs(filenames, args.IOthreads, filter_chrom_list)
+    print('finish parsing in %ss'%(round(time.time() - start_time, 6)))
+    file = open(args.output, 'w')
+    generate_header(file, contiginfo, sample_ids)
+    file.close()
+
+    pool = Pool(processes = args.threads)
+    para = []
+    for contig in contiginfo:
+        if annotation_dict != None and contig in annotation_dict:
+            anno = annotation_dict[contig]
+        else:
+            anno = []
+        
+        file_dict = dict()
+        type_dict = dict()
+        idx = 0
+        ss_time = time.time()
+        for filename in filenames:
+            file_dict[idx] = parse_vcf_chrom([filename, contig, idx])  # 这里可不可以开多进程？
+            idx += 1
+        #'''
+        for fileidx in file_dict:
+            #records = file_dict[fileidx].get()[0] # {svtype -> List(Record)}
+            records = file_dict[fileidx] # {svtype -> List(Record)}
+            for svtype in records:
+                if svtype not in type_dict:
+                    type_dict[svtype] = dict()
+                type_dict[svtype][fileidx] = records[svtype]
+        print(time.time() - ss_time)
+        for svtype in type_dict:
+            #para.append([type_dict[svtype], contig, anno, args.support, svtype, len(sample_ids), args.supp, args.work_dir, config_para])
+            multi_para = [(type_dict[svtype], contig, anno, args.support, svtype, len(sample_ids), args.supp, args.work_dir, config_para)]
+            pool.map_async(multi_run_wrapper, multi_para)
+
+    #pool.map(ll_solve_chrom, para)
+    pool.close()
+    pool.join()
+    print('finish merging in %ss'%(round(time.time() - start_time, 6)))
+    os.system('cat %stemporary/* > %stemporary/vcf'%(args.work_dir, args.work_dir))
+    os.system('sort -k 1,1 -k 2,2n %stemporary/vcf >> %s'%(args.work_dir, args.output))
+    os.system('rm -r %sindex'%(args.work_dir))
+    os.system('rm -r %stemporary'%(args.work_dir))
+
+    #os.system('rm %stemporary/vcf'%(args.work_dir))
+    print('finish in %ss'%(round(time.time() - start_time, 6)))
+def multi_run_wrapper(args):
+	return conquer_merge(*args)
+
 # move io into process
 def main_ctrl(args):
     start_time = time.time()
@@ -175,12 +272,6 @@ def main_ctrl(args):
     else:
         print('index directory existed.')
         exit(0)
-    if args.debug:
-        if not os.path.exists('%sdebug'%(args.work_dir)):
-            os.mkdir('%sdebug'%(args.work_dir))
-        else:
-            print('debug directory existed.')
-            exit(0)
     filenames = index_vcf(args.input, args.threads, args.work_dir)
     annotation_dict = parse_annotation_file(args.annotation)
     filter_chrom_list = None if args.filter_chrom is None else args.filter_chrom.split(',')
@@ -206,19 +297,17 @@ def main_ctrl(args):
             anno = annotation_dict[contig]
         else:
             anno = []
-        para.append([filenames, contig, anno, args.support, args.IOthreads, len(sample_ids), args.supp, args.work_dir, config_para, args.debug])
+        #resolve_chrom([filenames, contig, anno, args.support, args.IOthreads, len(sample_ids), args.supp, args.work_dir, config_para])
+        para.append([filenames, contig, anno, args.support, args.IOthreads, len(sample_ids), args.supp, args.work_dir, config_para])
     pool.map(resolve_chrom, para)
     pool.close()
     pool.join()
     print('finish merging in %ss'%(round(time.time() - start_time, 6)))
     os.system('cat %stemporary/* > %stemporary/vcf'%(args.work_dir, args.work_dir))
     os.system('sort -k 1,1 -k 2,2n %stemporary/vcf >> %s'%(args.work_dir, args.output))
-    os.system('rm -r %sindex'%(args.work_dir))
+    #os.system('rm -r %sindex'%(args.work_dir))
     os.system('rm -r %stemporary'%(args.work_dir))
-    if args.debug:
-        os.system('cat %sdebug/* | sort -k 1,1 -k 2,2n > %svcf'%(args.work_dir, args.work_dir))
-        #os.system('sort -k 1,1 -k 2,2n %svcf'%(args.work_dir))
-        os.system('rm -r %sdebug'%(args.work_dir))
+
     #os.system('rm %stemporary/vcf'%(args.work_dir))
     print('finish in %ss'%(round(time.time() - start_time, 6)))
 
@@ -255,7 +344,7 @@ def main(args):
         else:
             anno = []
         for svtype in chr_dict[chr]:
-            para.append([chr_dict[chr][svtype], chr, anno, args.support, svtype, len(sample_ids), args.supp, args.work_dir, config_para, args.debug])
+            para.append([chr_dict[chr][svtype], chr, anno, args.support, svtype, len(sample_ids), args.supp, args.work_dir, config_para])
     #para.append([chr_dict['2']['DEL'], '2', None, args.support, 'DEL', len(sample_ids), args.supp])
     pool.map(ll_solve_chrom, para)
     pool.close()
@@ -294,9 +383,6 @@ if __name__ == '__main__':
     parser.add_argument('--massive',
             action="store_true",
             default = False)
-    parser.add_argument('--debug',
-            action="store_true",
-            default = False)
     parser.add_argument('-S', '--support',
             type = int,
             default = 1,
@@ -328,6 +414,7 @@ if __name__ == '__main__':
     args = parser.parse_args(sys.argv[1:])
     if args.massive:
         main_ctrl(args)
+        #fighting(args)
     else:
         main(args)
     # /usr/bin/time -v python first_release/cuteSV_merge.py real_test/real_100.fofn temp ./
